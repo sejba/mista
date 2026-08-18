@@ -27,7 +27,7 @@ export function saveSettings(settings) {
 
 function extractPublinkCode(url) {
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(url.trim());
     if (parsed.pathname.includes('/publink/show') && parsed.searchParams.has('code')) {
       return parsed.searchParams.get('code');
     }
@@ -37,57 +37,85 @@ function extractPublinkCode(url) {
   return null;
 }
 
+function wrapCsvResult(text, meta) {
+  return { text, meta: { ...meta, bytes: text.length } };
+}
+
 async function fetchCsvFromPublink(code) {
   const apiHosts = ['eapi.pcloud.com', 'api.pcloud.com'];
-  let lastError = null;
+  const errors = [];
 
   for (const host of apiHosts) {
     const apiUrl = `https://${host}/getpubtextfile?code=${encodeURIComponent(code)}`;
-    const response = await fetch(apiUrl, { cache: 'no-store' });
-    const text = await response.text();
+    try {
+      const response = await fetch(apiUrl, { cache: 'no-store' });
+      const text = await response.text();
 
-    if (text.trimStart().startsWith('{')) {
-      try {
-        const data = JSON.parse(text);
-        if (data.result !== 0) {
-          lastError = new Error(data.error || `pCloud chyba (${data.result}).`);
-          continue;
+      if (text.trimStart().startsWith('{')) {
+        try {
+          const data = JSON.parse(text);
+          if (data.result !== 0) {
+            errors.push(`${host}: ${data.error || `kód ${data.result}`}`);
+            continue;
+          }
+        } catch {
+          // not JSON — treat as CSV
         }
-      } catch {
-        // not JSON — treat as CSV
       }
-    }
 
-    if (!response.ok) {
-      lastError = new Error(`Načtení CSV selhalo (${response.status}).`);
-      continue;
-    }
+      if (!response.ok) {
+        errors.push(`${host}: HTTP ${response.status}`);
+        continue;
+      }
 
-    return text;
+      return wrapCsvResult(text, {
+        source: 'pCloud Share link (API getpubtextfile)',
+        host,
+        code: `${code.slice(0, 8)}…`,
+      });
+    } catch (err) {
+      errors.push(`${host}: ${err.message}`);
+    }
   }
 
-  throw lastError || new Error('Načtení CSV z pCloud share linku selhalo.');
+  const detail = errors.length ? ` (${errors.join('; ')})` : '';
+  throw new Error(`Načtení CSV z pCloud Share linku selhalo${detail}`);
 }
 
 export async function fetchCsvFromDirectLink(url) {
-  if (!url) throw new Error('Nastavte CSV URL z pCloud.');
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) throw new Error('Nastavte CSV URL z pCloud.');
 
-  const publinkCode = extractPublinkCode(url);
+  const publinkCode = extractPublinkCode(trimmedUrl);
   if (publinkCode) {
     return fetchCsvFromPublink(publinkCode);
   }
 
-  const response = await fetch(url, { cache: 'no-store' });
+  let response;
+  try {
+    response = await fetch(trimmedUrl, { cache: 'no-store' });
+  } catch (err) {
+    throw new Error(`Nepodařilo se stáhnout CSV (síť/CORS): ${err.message}`);
+  }
+
   if (!response.ok) {
-    throw new Error(`Načtení CSV selhalo (${response.status}).`);
+    throw new Error(`Načtení CSV selhalo (HTTP ${response.status}).`);
   }
+
   const text = await response.text();
-  if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().startsWith('<html')) {
-    throw new Error(
-      'URL vede na náhledovou stránku, ne na CSV. Použijte Share link z pCloud nebo Direct link z Public Folder.'
-    );
+  const meta = {
+    source: 'Přímé stažení URL',
+    host: new URL(trimmedUrl).hostname,
+  };
+
+  if (text.trimStart().startsWith('<!DOCTYPE') || text.trimStart().toLowerCase().startsWith('<html')) {
+    return wrapCsvResult(text, {
+      ...meta,
+      source: 'HTML stránka (Share link bez API převodu?)',
+    });
   }
-  return text;
+
+  return wrapCsvResult(text, meta);
 }
 
 /** Remove legacy pCloud OAuth keys from older app versions. */

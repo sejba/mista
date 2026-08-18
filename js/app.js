@@ -1,6 +1,8 @@
 import { CONFIG } from './config.js';
 import {
-  parseCsv,
+  parseCsvDetailed,
+  describeParseResult,
+  formatLoadDebug,
   extractUniqueTags,
   extractUniqueStatuses,
 } from './csv.js';
@@ -34,6 +36,7 @@ import {
 
 let remotePlaces = [];
 let allPlaces = [];
+let lastLoadResult = null;
 
 function rebuildAllPlaces() {
   allPlaces = [...remotePlaces, ...getLocalPlaces()];
@@ -43,16 +46,27 @@ async function loadData() {
   const settings = getSettings();
   showLoading(true);
   try {
-    const text = await fetchCsvFromDirectLink(settings.csvDirectUrl);
-    remotePlaces = parseCsv(text);
+    const { text, meta } = await fetchCsvFromDirectLink(settings.csvDirectUrl);
+    const { places, report } = parseCsvDetailed(text);
+    remotePlaces = places;
+
+    const result = describeParseResult(places, report, meta);
+    lastLoadResult = result;
+    console.info('[Mista] CSV load', result);
+    console.info('[Mista] Debug\n' + formatLoadDebug(result));
+
     rebuildAllPlaces();
     refreshUi();
 
     const localCount = getLocalPlaces().length;
-    const remoteMsg = `Načteno ${remotePlaces.length} míst z pCloud`;
-    showToast(localCount ? `${remoteMsg} (+${localCount} lokálních)` : remoteMsg);
+    let message = result.message;
+    if (localCount > 0) message += ` (+${localCount} lokálních)`;
+
+    showToast(message, { isError: !result.ok, duration: result.ok ? 3500 : 8000 });
   } catch (err) {
-    showToast(err.message, true);
+    lastLoadResult = { ok: false, message: err.message, report: null, fetchMeta: null };
+    console.error('[Mista] CSV load failed', err);
+    showToast(err.message, { isError: true, duration: 8000 });
     remotePlaces = [];
     rebuildAllPlaces();
     refreshUi();
@@ -112,6 +126,7 @@ function openSettings() {
   const settings = getSettings();
   showSettings(settings, {
     localCount: getLocalPlaces().length,
+    loadDebug: lastLoadResult ? formatLoadDebug(lastLoadResult) : null,
     onSave: (updated) => {
       const merged = { ...settings, ...updated };
       saveSettings(merged);

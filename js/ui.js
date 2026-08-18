@@ -9,14 +9,16 @@ import { CONFIG } from './config.js';
 
 let toastTimer = null;
 
-export function showToast(message, isError = false) {
+export function showToast(message, options = {}) {
+  const { isError = false, duration = 3500 } =
+    typeof options === 'boolean' ? { isError: options } : options;
   const el = document.getElementById('toast');
   if (!el) return;
   el.textContent = message;
   el.classList.toggle('error', isError);
   el.classList.add('visible');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('visible'), 3000);
+  toastTimer = setTimeout(() => el.classList.remove('visible'), duration);
 }
 
 export function showLoading(show) {
@@ -83,7 +85,7 @@ export function showDetail(place) {
 }
 
 export function showSettings(settings, handlers) {
-  const { localCount, onSave, onRefresh, onExport, onClearLocal } = handlers;
+  const { localCount, loadDebug, onSave, onRefresh, onExport, onClearLocal } = handlers;
   const form = document.getElementById('settings-form');
   if (!form) return;
 
@@ -98,6 +100,11 @@ export function showSettings(settings, handlers) {
     } else {
       infoEl.textContent = 'Nová místa se ukládají lokálně. Exportujte CSV a nahrajte do pCloud ručně.';
     }
+  }
+
+  const debugEl = document.getElementById('load-debug');
+  if (debugEl) {
+    debugEl.textContent = loadDebug || 'Zatím nebylo nic načteno — klepněte Načíst CSV znovu.';
   }
 
   form.onsubmit = (e) => {

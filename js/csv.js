@@ -3,6 +3,8 @@
  * Columns: Název, GPS, Poznámka, Tagy, Status
  */
 
+import { CONFIG } from './config.js';
+
 const COLUMN_MAP = {
   název: 'name',
   nazev: 'name',
@@ -23,6 +25,12 @@ function stripBom(text) {
   return text;
 }
 
+function delimiterLabel(delimiter) {
+  if (delimiter === '\t') return 'tab';
+  if (delimiter === ';') return 'středník';
+  return 'čárka';
+}
+
 function detectDelimiter(line) {
   const tabs = (line.match(/\t/g) || []).length;
   const semicolons = (line.match(/;/g) || []).length;
@@ -32,6 +40,17 @@ function detectDelimiter(line) {
   if (semicolons >= commas && semicolons > 0) return ';';
   if (commas > 0) return ',';
   return '\t';
+}
+
+function detectContentKind(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return 'empty';
+  const lower = trimmed.slice(0, 200).toLowerCase();
+  if (lower.startsWith('<!doctype') || lower.startsWith('<html') || lower.includes('<html')) {
+    return 'html';
+  }
+  if (trimmed.startsWith('{') && trimmed.includes('"result"')) return 'json';
+  return 'csv';
 }
 
 function splitLine(line, delimiter) {
@@ -84,28 +103,60 @@ function normalizeHeader(h) {
   return h.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
 }
 
-export function parseCsv(text) {
+export function parseCsvDetailed(text) {
   const content = stripBom(text).trim();
-  if (!content) return [];
+  const report = {
+    contentKind: detectContentKind(content),
+    delimiter: null,
+    delimiterLabel: '',
+    headers: [],
+    hasGpsColumn: false,
+    dataRows: 0,
+    skipped: [],
+    preview: content.slice(0, 160).replace(/\s+/g, ' '),
+  };
+
+  if (report.contentKind !== 'csv') {
+    return { places: [], report };
+  }
 
   const lines = content.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length === 0) return [];
+  if (lines.length === 0) {
+    report.contentKind = 'empty';
+    return { places: [], report };
+  }
 
   const delimiter = detectDelimiter(lines[0]);
+  report.delimiter = delimiter;
+  report.delimiterLabel = delimiterLabel(delimiter);
+
   const headers = splitLine(lines[0], delimiter);
+  report.headers = headers;
   const fieldKeys = headers.map((h) => COLUMN_MAP[normalizeHeader(h)] || null);
+  report.hasGpsColumn = fieldKeys.includes('gps');
 
   const places = [];
+  report.dataRows = Math.max(0, lines.length - 1);
+
   for (let i = 1; i < lines.length; i++) {
     const cells = splitLine(lines[i], delimiter);
     const row = {};
     fieldKeys.forEach((key, idx) => {
-      if (key && cells[idx]) row[key] = cells[idx];
+      if (key && cells[idx] !== undefined) row[key] = cells[idx];
     });
 
     const coords = parseGps(row.gps);
     if (!coords) {
-      console.warn(`Skipping row ${i + 1}: invalid GPS "${row.gps}"`);
+      report.skipped.push({
+        line: i + 1,
+        gps: row.gps || '',
+        name: row.name || '',
+        reason: !report.hasGpsColumn
+          ? 'missing-gps-column'
+          : row.gps
+            ? 'invalid-gps'
+            : 'empty-gps',
+      });
       continue;
     }
 
@@ -119,7 +170,91 @@ export function parseCsv(text) {
       status: row.status || '',
     });
   }
-  return places;
+
+  return { places, report };
+}
+
+export function parseCsv(text) {
+  return parseCsvDetailed(text).places;
+}
+
+export function describeParseResult(places, report, fetchMeta = null) {
+  if (places.length > 0) {
+    const skipped = report.skipped.length;
+    let message = `Načteno ${places.length} míst`;
+    if (skipped > 0) message += ` (${skipped} řádků přeskočeno)`;
+    return { ok: true, message, report, fetchMeta };
+  }
+
+  if (report.contentKind === 'html') {
+    return {
+      ok: false,
+      message:
+        'Odpověď je HTML stránka pCloud, ne CSV. Vložte Share link (e.pcloud.link/.../show?code=...) — appka ho převede automaticky.',
+      report,
+      fetchMeta,
+    };
+  }
+
+  if (report.contentKind === 'json') {
+    return {
+      ok: false,
+      message: 'pCloud vrátil JSON chybu místo CSV. Zkontrolujte, že link funguje v prohlížeči.',
+      report,
+      fetchMeta,
+    };
+  }
+
+  if (report.contentKind === 'empty') {
+    return {
+      ok: false,
+      message: 'CSV soubor je prázdný.',
+      report,
+      fetchMeta,
+    };
+  }
+
+  let message = `0 míst z ${report.dataRows} řádků dat`;
+  if (!report.hasGpsColumn) {
+    message += `. Sloupec GPS nenalezen — hlavička: [${report.headers.join(' | ')}], detekovaný oddělovač: ${report.delimiterLabel}.`;
+  } else if (report.skipped.length > 0) {
+    const first = report.skipped[0];
+    message += `. Řádek ${first.line}: neplatné GPS „${first.gps || '(prázdné)'}“`;
+    if (report.skipped.length > 1) {
+      message += ` (+${report.skipped.length - 1} dalších)`;
+    }
+  } else {
+    message += '. CSV neobsahuje datové řádky.';
+  }
+
+  return { ok: false, message, report, fetchMeta };
+}
+
+export function formatLoadDebug(result) {
+  const { report, fetchMeta } = result;
+  const lines = [`Mista v${CONFIG.appVersion}`];
+
+  if (fetchMeta) {
+    lines.push(`Načtení: ${fetchMeta.source}`);
+    if (fetchMeta.host) lines.push(`API: ${fetchMeta.host}`);
+    if (fetchMeta.bytes != null) lines.push(`Velikost: ${fetchMeta.bytes} B`);
+  }
+
+  lines.push(`Typ odpovědi: ${report.contentKind}`);
+  if (report.delimiterLabel) lines.push(`Oddělovač: ${report.delimiterLabel}`);
+  if (report.headers.length) lines.push(`Hlavička: ${report.headers.join(' | ')}`);
+  lines.push(`GPS sloupec: ${report.hasGpsColumn ? 'ano' : 'ne'}`);
+  lines.push(`Datové řádky: ${report.dataRows}, přeskočeno: ${report.skipped.length}`);
+
+  if (report.skipped.length > 0) {
+    report.skipped.slice(0, 5).forEach((row) => {
+      lines.push(`  ř.${row.line}: ${row.reason} — GPS „${row.gps || '(prázdné)'}“`);
+    });
+  }
+
+  if (report.preview) lines.push(`Náhled: ${report.preview}`);
+
+  return lines.join('\n');
 }
 
 export function serializeCsv(places, columns = ['Název', 'GPS', 'Poznámka', 'Tagy', 'Status']) {

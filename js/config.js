@@ -1,5 +1,6 @@
 /** Default configuration (no secrets). */
 export const CONFIG = {
+  appVersion: '1.1.0',
   defaultCenter: [50.0875, 14.4214],
   defaultZoom: 13,
   storageKeys: {
