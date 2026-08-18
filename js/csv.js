@@ -3,7 +3,7 @@
  * Columns: Název, GPS, Poznámka, Tagy, Status
  */
 
-import { CONFIG } from './config.js?v=1.1.2';
+import { CONFIG } from './config.js?v=1.1.3';
 
 const COLUMN_MAP = {
   název: 'name',
@@ -99,6 +99,43 @@ export function parseTags(raw) {
     .filter(Boolean);
 }
 
+const STATUS_ALIASES = {
+  done: 'Done',
+  'to do': 'To Do',
+  todo: 'To Do',
+  navstiveno: 'Done',
+  'chci navstivit': 'To Do',
+};
+
+function normalizeStatusKey(raw) {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Map CSV / legacy values to canonical status (Done | To Do). */
+export function normalizeStatus(raw) {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return 'To Do';
+  if (CONFIG.statusLabels[trimmed]) return trimmed;
+
+  const alias = STATUS_ALIASES[normalizeStatusKey(trimmed)];
+  if (alias) return alias;
+
+  return 'To Do';
+}
+
+/** Czech label for UI. */
+export function statusLabel(status) {
+  return CONFIG.statusLabels[status] || CONFIG.statusLabels['To Do'];
+}
+
+export function getStatusValues() {
+  return [...CONFIG.statusValues];
+}
+
 function normalizeHeader(h) {
   return h
     .trim()
@@ -175,7 +212,7 @@ export function parseCsvDetailed(text) {
       lng: coords.lng,
       note: row.note || '',
       tags: parseTags(row.tags),
-      status: row.status || '',
+      status: normalizeStatus(row.status),
     });
   }
 
@@ -307,10 +344,6 @@ export function extractUniqueTags(places) {
   return [...set].sort((a, b) => a.localeCompare(b, 'cs'));
 }
 
-export function extractUniqueStatuses(places, defaults = []) {
-  const set = new Set(defaults);
-  places.forEach((p) => {
-    if (p.status) set.add(p.status);
-  });
-  return [...set].sort((a, b) => a.localeCompare(b, 'cs'));
+export function extractUniqueStatuses(_places, defaults = CONFIG.statusValues) {
+  return [...defaults];
 }

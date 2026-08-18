@@ -2,6 +2,8 @@
  * Filter state and UI for Tagy and Status chips.
  */
 
+import { statusLabel } from './csv.js?v=1.1.3';
+
 let activeTag = null;
 let activeStatus = null;
 let onFilterChange = null;
@@ -42,7 +44,7 @@ export function renderFilters(tags, statuses) {
   const tagItems = [{ label: 'Vše', value: null }, ...tags.map((t) => ({ label: t, value: t }))];
   const statusItems = [
     { label: 'Vše', value: null },
-    ...statuses.map((s) => ({ label: s, value: s })),
+    ...statuses.map((s) => ({ label: statusLabel(s), value: s })),
   ];
 
   renderChipRow(tagContainer, tagItems, activeTag, (value) => {

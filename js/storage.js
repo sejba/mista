@@ -1,5 +1,5 @@
-import { CONFIG } from './config.js?v=1.1.2';
-import { serializeCsv } from './csv.js?v=1.1.2';
+import { CONFIG } from './config.js?v=1.1.3';
+import { serializeCsv, normalizeStatus } from './csv.js?v=1.1.3';
 
 function loadRaw() {
   try {
@@ -17,7 +17,10 @@ function saveRaw(places) {
 }
 
 export function getLocalPlaces() {
-  return loadRaw();
+  return loadRaw().map((place) => ({
+    ...place,
+    status: normalizeStatus(place.status),
+  }));
 }
 
 export function addLocalPlace(place) {

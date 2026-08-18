@@ -1,6 +1,6 @@
 /** Default configuration (no secrets). */
 export const CONFIG = {
-  appVersion: '1.1.2',
+  appVersion: '1.1.3',
   defaultCenter: [50.0875, 14.4214],
   defaultZoom: 13,
   storageKeys: {
@@ -12,5 +12,10 @@ export const CONFIG = {
   },
   defaultCsvFilename: 'mista.csv',
   csvColumns: ['Název', 'GPS', 'Poznámka', 'Tagy', 'Status'],
-  statusDefaults: ['Chci navštívit', 'Navštíveno'],
+  /** Canonical values stored in CSV. */
+  statusValues: ['To Do', 'Done'],
+  statusLabels: {
+    'To Do': 'Chci navštívit',
+    Done: 'Navštíveno',
+  },
 };

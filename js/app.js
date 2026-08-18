@@ -1,12 +1,12 @@
-import { CONFIG } from './config.js?v=1.1.2';
+import { CONFIG } from './config.js?v=1.1.3';
 import {
   parseCsvDetailed,
   describeParseResult,
   formatLoadDebug,
   formatLoadDebugError,
   extractUniqueTags,
-  extractUniqueStatuses,
-} from './csv.js?v=1.1.2';
+  getStatusValues,
+} from './csv.js?v=1.1.3';
 import {
   getSettings,
   saveSettings,
@@ -14,19 +14,19 @@ import {
   migrateLegacySettings,
   saveLoadDebug,
   getLoadDebug,
-} from './pcloud.js?v=1.1.2';
+} from './pcloud.js?v=1.1.3';
 import {
   getLocalPlaces,
   addLocalPlace,
   clearLocalPlaces,
   exportCsvFile,
-} from './storage.js?v=1.1.2';
-import { initMap, setPlaces, locateUser, updateTileLayer } from './map.js?v=1.1.2';
+} from './storage.js?v=1.1.3';
+import { initMap, setPlaces, locateUser, updateTileLayer } from './map.js?v=1.1.3';
 import {
   initFilters,
   filterPlaces,
   renderFilters,
-} from './filters.js?v=1.1.2';
+} from './filters.js?v=1.1.3';
 import {
   initSheetHandlers,
   initHeaderButtons,
@@ -36,7 +36,7 @@ import {
   showToast,
   showLoading,
   updateLoadDebugPanel,
-} from './ui.js?v=1.1.2';
+} from './ui.js?v=1.1.3';
 
 let remotePlaces = [];
 let allPlaces = [];
@@ -91,7 +91,7 @@ async function loadData() {
 
 function refreshUi() {
   const tags = extractUniqueTags(allPlaces);
-  const statuses = extractUniqueStatuses(allPlaces, CONFIG.statusDefaults);
+  const statuses = getStatusValues();
   renderFilters(tags, statuses);
 
   const filtered = filterPlaces(allPlaces);
@@ -165,7 +165,7 @@ function bootstrap() {
   initHeaderButtons(openSettings);
 
   document.addEventListener('mista:add', () => {
-    const statuses = extractUniqueStatuses(allPlaces, CONFIG.statusDefaults);
+    const statuses = getStatusValues();
     showAddForm(statuses, saveNewPlace);
   });
 

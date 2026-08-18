@@ -4,9 +4,9 @@ import {
   setPickMarker,
   getCurrentPosition,
   invalidateSize,
-} from './map.js?v=1.1.2';
-import { CONFIG } from './config.js?v=1.1.2';
-import { parseTags } from './csv.js?v=1.1.2';
+} from './map.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.1.3';
+import { parseTags, statusLabel } from './csv.js?v=1.1.3';
 
 let toastTimer = null;
 
@@ -59,7 +59,7 @@ export function showDetail(place) {
 
   if (title) title.textContent = place.name;
   if (note) note.textContent = place.note || '—';
-  if (statusEl) statusEl.textContent = place.status || '—';
+  if (statusEl) statusEl.textContent = statusLabel(place.status);
 
   if (tagsEl) {
     tagsEl.innerHTML = '';
@@ -154,7 +154,7 @@ export function showAddForm(statuses, onSave) {
   statuses.forEach((s) => {
     const opt = document.createElement('option');
     opt.value = s;
-    opt.textContent = s;
+    opt.textContent = statusLabel(s);
     statusSelect.appendChild(opt);
   });
 
