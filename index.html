@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Mapa zajímavých míst z pCloud CSV">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mista">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Mista</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            accent: '#2E86AB',
+            'accent-dark': '#1B4F72',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+</head>
+<body class="font-sans antialiased">
+  <div id="app">
+  <header class="app-header">
+    <h1 class="app-title">Mista</h1>
+    <button type="button" id="btn-settings" class="icon-btn" aria-label="Nastavení">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="filters-panel">
+    <div class="filter-row">
+      <span class="filter-label">Tagy</span>
+      <div id="filter-tags" class="filter-chips"></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Status</span>
+      <div id="filter-status" class="filter-chips"></div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <button type="button" id="btn-add" class="fab" aria-label="Přidat místo">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  </button>
+
+  <div id="loading" class="loading hidden">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="sheet-backdrop" class="sheet-backdrop"></div>
+
+  <!-- Detail sheet -->
+  <div id="detail-sheet" class="bottom-sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="detail-title" class="sheet-title"></h2>
+    <p id="detail-note" class="sheet-text"></p>
+    <div class="sheet-row">
+      <span class="sheet-label">Tagy</span>
+      <div id="detail-tags" class="tag-list"></div>
+    </div>
+    <div class="sheet-row">
+      <span class="sheet-label">Status</span>
+      <span id="detail-status" class="status-badge"></span>
+    </div>
+    <button type="button" id="detail-navigate" class="btn-primary">Navigovat</button>
+    <button type="button" data-close-sheet class="btn-secondary">Zavřít</button>
+  </div>
+
+  <!-- Add sheet -->
+  <div id="add-sheet" class="bottom-sheet">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Nové místo</h2>
+    <form id="add-form" class="sheet-form">
+      <label>
+        Název
+        <input type="text" name="name" required placeholder="Název místa">
+      </label>
+      <label>
+        Poznámka
+        <textarea name="note" rows="3" placeholder="Poznámka"></textarea>
+      </label>
+      <label>
+        Tagy
+        <input type="text" name="tags" placeholder="např. kavárna, park">
+      </label>
+      <label>
+        Status
+        <select name="status"></select>
+      </label>
+      <div class="gps-row">
+        <span id="add-gps-display" class="gps-display">Nevybráno</span>
+        <button type="button" id="btn-use-location" class="btn-small">Moje poloha</button>
+        <button type="button" id="btn-pick-map" class="btn-small">Vybrat na mapě</button>
+      </div>
+      <button type="submit" class="btn-primary">Uložit</button>
+      <button type="button" data-close-sheet class="btn-secondary">Zavřít</button>
+    </form>
+  </div>
+
+  <!-- Settings sheet -->
+  <div id="settings-sheet" class="bottom-sheet settings-sheet">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Nastavení</h2>
+    <form id="settings-form" class="sheet-form">
+      <label>
+        CSV Direct Link URL
+        <input type="url" name="csvDirectUrl" placeholder="https://...">
+      </label>
+      <label>
+        pCloud Client ID
+        <input type="text" name="clientId" placeholder="OAuth Client ID">
+      </label>
+      <div class="pcloud-row">
+        <span id="pcloud-status" class="pcloud-status">Nepřipojeno</span>
+        <button type="button" id="btn-connect-pcloud" class="btn-small">Připojit pCloud</button>
+        <button type="button" id="btn-disconnect-pcloud" class="btn-small btn-muted">Odpojit</button>
+      </div>
+      <label>
+        Folder ID (pCloud)
+        <input type="text" name="folderId" placeholder="ID složky s CSV">
+      </label>
+      <label>
+        Název CSV souboru
+        <input type="text" name="csvFilename" placeholder="mista.csv">
+      </label>
+      <label>
+        Mapy.cz API key (volitelné)
+        <input type="text" name="mapyApiKey" placeholder="API klíč">
+      </label>
+      <button type="button" id="btn-refresh-csv" class="btn-secondary">Načíst CSV znovu</button>
+      <button type="submit" class="btn-primary">Uložit nastavení</button>
+      <button type="button" data-close-sheet class="btn-secondary">Zavřít</button>
+    </form>
+  </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
