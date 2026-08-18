@@ -3,7 +3,7 @@
  * Columns: Název, GPS, Poznámka, Tagy, Status
  */
 
-import { CONFIG } from './config.js';
+import { CONFIG } from './config.js?v=1.1.2';
 
 const COLUMN_MAP = {
   název: 'name',

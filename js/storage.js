@@ -1,5 +1,5 @@
-import { CONFIG } from './config.js';
-import { serializeCsv } from './csv.js';
+import { CONFIG } from './config.js?v=1.1.2';
+import { serializeCsv } from './csv.js?v=1.1.2';
 
 function loadRaw() {
   try {
