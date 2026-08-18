@@ -194,6 +194,22 @@ Bez klíče se použije OpenStreetMap.
 
 
 
+## Verzování
+
+Verze aplikace je v `js/config.js`. Stejné číslo je v query parametrech u skriptů a CSS (`?v=1.1.4`) kvůli cache bustingu — zejména na iPhonu v PWA, kde Safari jinak drží staré JS moduly.
+
+Formát **x.y.z** (semver):
+
+| Část | Kdy zvednout | Příklad |
+|------|----------------|---------|
+| **x** (major) | Ne kompatibilní změna (formát CSV, sync workflow) | `2.0.0` |
+| **y** (minor) | Nová funkce, zpětně kompatibilní | `1.2.0` |
+| **z** (patch) | Opravy, kosmetika, export | `1.1.5` |
+
+Po každém deployi, který chceš mít jistě na telefonu, zvedni **patch** a sjednoť číslo v `config.js`, `index.html` (`app.js`, `styles.css`) a importech v `js/*.js` (`?v=…`).
+
+Verzi uvidíš v nastavení v panelu **Diagnostika načtení**.
+
 ## Licence
 
 
