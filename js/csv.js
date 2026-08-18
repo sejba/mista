@@ -1,5 +1,5 @@
 /**
- * Parse and serialize CSV with tab or comma delimiter.
+ * Parse and serialize CSV with tab, semicolon, or comma delimiter.
  * Columns: Název, GPS, Poznámka, Tagy, Status
  */
 
@@ -25,8 +25,13 @@ function stripBom(text) {
 
 function detectDelimiter(line) {
   const tabs = (line.match(/\t/g) || []).length;
+  const semicolons = (line.match(/;/g) || []).length;
   const commas = (line.match(/,/g) || []).length;
-  return tabs >= commas ? '\t' : ',';
+
+  if (tabs >= semicolons && tabs >= commas && tabs > 0) return '\t';
+  if (semicolons >= commas && semicolons > 0) return ';';
+  if (commas > 0) return ',';
+  return '\t';
 }
 
 function splitLine(line, delimiter) {
@@ -56,7 +61,7 @@ function splitLine(line, delimiter) {
 
 export function parseGps(gpsStr) {
   if (!gpsStr || typeof gpsStr !== 'string') return null;
-  const cleaned = gpsStr.trim().replace(/[()]/g, '');
+  const cleaned = gpsStr.trim().replace(/[()]/g, '').replace(/[NnSsEeWw]/g, '');
   const parts = cleaned.split(/[,;\s]+/).filter(Boolean);
   if (parts.length < 2) return null;
 

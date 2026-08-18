@@ -145,7 +145,7 @@ function bootstrap() {
   } else {
     rebuildAllPlaces();
     refreshUi();
-    showToast('Nastavte CSV Direct Link v nastavení');
+    showToast('Nastavte CSV URL z pCloud v nastavení');
     setTimeout(openSettings, 500);
   }
 }
