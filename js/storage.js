@@ -1,5 +1,5 @@
-import { CONFIG } from './config.js?v=1.1.3';
-import { serializeCsv, normalizeStatus } from './csv.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.1.4';
+import { serializeCsv, normalizeStatus } from './csv.js?v=1.1.4';
 
 function loadRaw() {
   try {
@@ -42,7 +42,8 @@ export async function exportCsvFile(places, filename) {
 
   if (navigator.share && navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: name });
+      // Bez title — iOS jinak ukládá extra .txt soubor s názvem souboru.
+      await navigator.share({ files: [file] });
       return;
     } catch (err) {
       if (err.name === 'AbortError') {

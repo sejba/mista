@@ -2,7 +2,7 @@
  * Filter state and UI for Tagy and Status chips.
  */
 
-import { statusLabel } from './csv.js?v=1.1.3';
+import { statusLabel } from './csv.js?v=1.1.4';
 
 let activeTag = null;
 let activeStatus = null;

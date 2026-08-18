@@ -3,7 +3,7 @@
  * Columns: Název, GPS, Poznámka, Tagy, Status
  */
 
-import { CONFIG } from './config.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.1.4';
 
 const COLUMN_MAP = {
   název: 'name',
@@ -314,25 +314,27 @@ export function formatLoadDebugError(message) {
 }
 
 export function serializeCsv(places, columns = ['Název', 'GPS', 'Poznámka', 'Tagy', 'Status']) {
+  const delimiter = ';';
+
   const escape = (val) => {
     const s = String(val ?? '');
-    if (s.includes('"') || s.includes('\t') || s.includes('\n') || s.includes(',')) {
+    if (s.includes('"') || s.includes(delimiter) || s.includes('\n') || s.includes('\r')) {
       return `"${s.replace(/"/g, '""')}"`;
     }
     return s;
   };
 
-  const header = columns.join('\t');
+  const header = columns.join(delimiter);
   const rows = places.map((p) => {
-    const gps = `${p.lat}, ${p.lng}`;
-    const tags = (p.tags || []).join(', ');
+    const gps = `${p.lat} ${p.lng}`;
+    const tags = (p.tags || []).join(' ');
     return [
       escape(p.name),
       escape(gps),
       escape(p.note),
       escape(tags),
       escape(p.status),
-    ].join('\t');
+    ].join(delimiter);
   });
 
   return [header, ...rows].join('\n');

@@ -1,4 +1,4 @@
-import { CONFIG } from './config.js?v=1.1.3';
+import { CONFIG } from './config.js?v=1.1.4';
 
 function getStored(key) {
   return localStorage.getItem(key) || '';

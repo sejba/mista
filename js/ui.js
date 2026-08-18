@@ -4,9 +4,9 @@ import {
   setPickMarker,
   getCurrentPosition,
   invalidateSize,
-} from './map.js?v=1.1.3';
-import { CONFIG } from './config.js?v=1.1.3';
-import { parseTags, statusLabel } from './csv.js?v=1.1.3';
+} from './map.js?v=1.1.4';
+import { CONFIG } from './config.js?v=1.1.4';
+import { parseTags, statusLabel } from './csv.js?v=1.1.4';
 
 let toastTimer = null;
 
