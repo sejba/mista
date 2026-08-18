@@ -1,6 +1,6 @@
 /** Default configuration (no secrets). */
 export const CONFIG = {
-  appVersion: '1.1.0',
+  appVersion: '1.1.1',
   defaultCenter: [50.0875, 14.4214],
   defaultZoom: 13,
   storageKeys: {
@@ -8,6 +8,7 @@ export const CONFIG = {
     csvFilename: 'mista_csv_filename',
     mapyApiKey: 'mista_mapy_api_key',
     localPlaces: 'mista_local_places',
+    lastLoadDebug: 'mista_last_load_debug',
   },
   defaultCsvFilename: 'mista.csv',
   csvColumns: ['Název', 'GPS', 'Poznámka', 'Tagy', 'Status'],

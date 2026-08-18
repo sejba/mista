@@ -100,11 +100,19 @@ function parseTags(raw) {
 }
 
 function normalizeHeader(h) {
-  return h.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  return h
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizeLineEndings(text) {
+  return text.replace(/\r\n?/g, '\n');
 }
 
 export function parseCsvDetailed(text) {
-  const content = stripBom(text).trim();
+  const content = stripBom(normalizeLineEndings(text)).trim();
   const report = {
     contentKind: detectContentKind(content),
     delimiter: null,
@@ -120,7 +128,7 @@ export function parseCsvDetailed(text) {
     return { places: [], report };
   }
 
-  const lines = content.split(/\r?\n/).filter((l) => l.trim());
+  const lines = content.split('\n').filter((l) => l.trim());
   if (lines.length === 0) {
     report.contentKind = 'empty';
     return { places: [], report };
@@ -231,8 +239,15 @@ export function describeParseResult(places, report, fetchMeta = null) {
 }
 
 export function formatLoadDebug(result) {
-  const { report, fetchMeta } = result;
+  const { report, fetchMeta, message, ok } = result;
   const lines = [`Mista v${CONFIG.appVersion}`];
+
+  if (typeof navigator !== 'undefined') {
+    lines.push(`Prohlížeč: ${navigator.userAgent.slice(0, 80)}…`);
+  }
+  if (message) lines.push(`Výsledek: ${ok ? 'OK' : 'CHYBA'} — ${message}`);
+
+  if (!report) return lines.join('\n');
 
   if (fetchMeta) {
     lines.push(`Načtení: ${fetchMeta.source}`);
@@ -255,6 +270,10 @@ export function formatLoadDebug(result) {
   if (report.preview) lines.push(`Náhled: ${report.preview}`);
 
   return lines.join('\n');
+}
+
+export function formatLoadDebugError(message) {
+  return [`Mista v${CONFIG.appVersion}`, `Výsledek: CHYBA — ${message}`].join('\n');
 }
 
 export function serializeCsv(places, columns = ['Název', 'GPS', 'Poznámka', 'Tagy', 'Status']) {

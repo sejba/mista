@@ -25,20 +25,50 @@ export function saveSettings(settings) {
   setStored(keys.mapyApiKey, settings.mapyApiKey);
 }
 
+export function saveLoadDebug(text) {
+  setStored(CONFIG.storageKeys.lastLoadDebug, text);
+}
+
+export function getLoadDebug() {
+  return getStored(CONFIG.storageKeys.lastLoadDebug);
+}
+
+function sanitizeUrl(url) {
+  return url
+    .trim()
+    .replace(/[\u2018\u2019\u201C\u201D]/g, '')
+    .replace(/\s+/g, '');
+}
+
 function extractPublinkCode(url) {
+  const cleaned = sanitizeUrl(url);
+  if (!cleaned) return null;
+
   try {
-    const parsed = new URL(url.trim());
-    if (parsed.pathname.includes('/publink/show') && parsed.searchParams.has('code')) {
-      return parsed.searchParams.get('code');
-    }
+    const parsed = new URL(cleaned);
+    const code = parsed.searchParams.get('code');
+    if (code) return code;
   } catch {
-    // ignore invalid URLs
+    // fall through to regex
   }
-  return null;
+
+  const match = cleaned.match(/[?&]code=([^&#]+)/i);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 function wrapCsvResult(text, meta) {
   return { text, meta: { ...meta, bytes: text.length } };
+}
+
+async function fetchText(url, init = {}) {
+  const response = await fetch(url, {
+    cache: 'no-store',
+    mode: 'cors',
+    credentials: 'omit',
+    ...init,
+  });
+  const text = await response.text();
+  return { response, text };
 }
 
 async function fetchCsvFromPublink(code) {
@@ -48,8 +78,7 @@ async function fetchCsvFromPublink(code) {
   for (const host of apiHosts) {
     const apiUrl = `https://${host}/getpubtextfile?code=${encodeURIComponent(code)}`;
     try {
-      const response = await fetch(apiUrl, { cache: 'no-store' });
-      const text = await response.text();
+      const { response, text } = await fetchText(apiUrl);
 
       if (text.trimStart().startsWith('{')) {
         try {
@@ -83,7 +112,7 @@ async function fetchCsvFromPublink(code) {
 }
 
 export async function fetchCsvFromDirectLink(url) {
-  const trimmedUrl = url.trim();
+  const trimmedUrl = sanitizeUrl(url);
   if (!trimmedUrl) throw new Error('Nastavte CSV URL z pCloud.');
 
   const publinkCode = extractPublinkCode(trimmedUrl);
@@ -92,8 +121,9 @@ export async function fetchCsvFromDirectLink(url) {
   }
 
   let response;
+  let text;
   try {
-    response = await fetch(trimmedUrl, { cache: 'no-store' });
+    ({ response, text } = await fetchText(trimmedUrl));
   } catch (err) {
     throw new Error(`Nepodařilo se stáhnout CSV (síť/CORS): ${err.message}`);
   }
@@ -102,7 +132,6 @@ export async function fetchCsvFromDirectLink(url) {
     throw new Error(`Načtení CSV selhalo (HTTP ${response.status}).`);
   }
 
-  const text = await response.text();
   const meta = {
     source: 'Přímé stažení URL',
     host: new URL(trimmedUrl).hostname,

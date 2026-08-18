@@ -1,29 +1,32 @@
-import { CONFIG } from './config.js';
+import { CONFIG } from './config.js?v=1.1.1';
 import {
   parseCsvDetailed,
   describeParseResult,
   formatLoadDebug,
+  formatLoadDebugError,
   extractUniqueTags,
   extractUniqueStatuses,
-} from './csv.js';
+} from './csv.js?v=1.1.1';
 import {
   getSettings,
   saveSettings,
   fetchCsvFromDirectLink,
   migrateLegacySettings,
-} from './pcloud.js';
+  saveLoadDebug,
+  getLoadDebug,
+} from './pcloud.js?v=1.1.1';
 import {
   getLocalPlaces,
   addLocalPlace,
   clearLocalPlaces,
   exportCsvFile,
-} from './storage.js';
-import { initMap, setPlaces, locateUser, updateTileLayer } from './map.js';
+} from './storage.js?v=1.1.1';
+import { initMap, setPlaces, locateUser, updateTileLayer } from './map.js?v=1.1.1';
 import {
   initFilters,
   filterPlaces,
   renderFilters,
-} from './filters.js';
+} from './filters.js?v=1.1.1';
 import {
   initSheetHandlers,
   initHeaderButtons,
@@ -32,7 +35,8 @@ import {
   showAddForm,
   showToast,
   showLoading,
-} from './ui.js';
+  updateLoadDebugPanel,
+} from './ui.js?v=1.1.1';
 
 let remotePlaces = [];
 let allPlaces = [];
@@ -40,6 +44,11 @@ let lastLoadResult = null;
 
 function rebuildAllPlaces() {
   allPlaces = [...remotePlaces, ...getLocalPlaces()];
+}
+
+function persistLoadDebug(text) {
+  saveLoadDebug(text);
+  updateLoadDebugPanel(text);
 }
 
 async function loadData() {
@@ -53,7 +62,10 @@ async function loadData() {
     const result = describeParseResult(places, report, meta);
     lastLoadResult = result;
     console.info('[Mista] CSV load', result);
-    console.info('[Mista] Debug\n' + formatLoadDebug(result));
+
+    const debugText = formatLoadDebug(result);
+    console.info('[Mista] Debug\n' + debugText);
+    persistLoadDebug(debugText);
 
     rebuildAllPlaces();
     refreshUi();
@@ -66,6 +78,8 @@ async function loadData() {
   } catch (err) {
     lastLoadResult = { ok: false, message: err.message, report: null, fetchMeta: null };
     console.error('[Mista] CSV load failed', err);
+    const debugText = formatLoadDebugError(err.message);
+    persistLoadDebug(debugText);
     showToast(err.message, { isError: true, duration: 8000 });
     remotePlaces = [];
     rebuildAllPlaces();
@@ -126,7 +140,7 @@ function openSettings() {
   const settings = getSettings();
   showSettings(settings, {
     localCount: getLocalPlaces().length,
-    loadDebug: lastLoadResult ? formatLoadDebug(lastLoadResult) : null,
+    loadDebug: getLoadDebug() || (lastLoadResult ? formatLoadDebug(lastLoadResult) : null),
     onSave: (updated) => {
       const merged = { ...settings, ...updated };
       saveSettings(merged);

@@ -84,6 +84,11 @@ export function showDetail(place) {
   openSheet('detail-sheet');
 }
 
+export function updateLoadDebugPanel(text) {
+  const debugEl = document.getElementById('load-debug');
+  if (debugEl && text) debugEl.textContent = text;
+}
+
 export function showSettings(settings, handlers) {
   const { localCount, loadDebug, onSave, onRefresh, onExport, onClearLocal } = handlers;
   const form = document.getElementById('settings-form');
@@ -104,15 +109,13 @@ export function showSettings(settings, handlers) {
 
   const debugEl = document.getElementById('load-debug');
   if (debugEl) {
-    debugEl.textContent = loadDebug || 'Zatím nebylo nic načteno — klepněte Načíst CSV znovu.';
+    debugEl.textContent =
+      loadDebug || 'Zatím nebylo nic načteno — klepněte Načíst CSV znovu.';
   }
 
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    onSave(getSettingsFromForm(form));
-    closeAllSheets();
-    showToast('Nastavení uloženo');
-  };
+  document.getElementById('btn-refresh-csv')?.addEventListener('click', () => {
+    onRefresh();
+  }, { once: true });
 
   document.getElementById('btn-export-csv')?.addEventListener('click', () => {
     onExport();
@@ -122,9 +125,12 @@ export function showSettings(settings, handlers) {
     onClearLocal();
   }, { once: true });
 
-  document.getElementById('btn-refresh-csv')?.addEventListener('click', () => {
-    onRefresh();
-  }, { once: true });
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    onSave(getSettingsFromForm(form));
+    closeAllSheets();
+    showToast('Nastavení uloženo');
+  };
 
   openSheet('settings-sheet');
 }
