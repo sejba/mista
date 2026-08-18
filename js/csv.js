@@ -91,10 +91,10 @@ export function parseGps(gpsStr) {
   return { lat, lng };
 }
 
-function parseTags(raw) {
+export function parseTags(raw) {
   if (!raw) return [];
   return raw
-    .split(/[,;]/)
+    .split(/[,;\s]+/)
     .map((t) => t.trim())
     .filter(Boolean);
 }

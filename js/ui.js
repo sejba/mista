@@ -6,6 +6,7 @@ import {
   invalidateSize,
 } from './map.js';
 import { CONFIG } from './config.js';
+import { parseTags } from './csv.js';
 
 let toastTimer = null;
 
@@ -196,10 +197,7 @@ export function showAddForm(statuses, onSave) {
       return;
     }
 
-    const tags = form.tags.value
-      .split(/[,;]/)
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const tags = parseTags(form.tags.value);
 
     const place = {
       name: form.name.value.trim(),
