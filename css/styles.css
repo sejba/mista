@@ -388,7 +388,13 @@ html, body {
   min-width: 120px;
 }
 
-.pcloud-row {
+.settings-hint {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
   display: flex;
   flex-wrap: wrap;
   align-items: center;

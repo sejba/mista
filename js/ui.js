@@ -6,7 +6,6 @@ import {
   invalidateSize,
 } from './map.js';
 import { CONFIG } from './config.js';
-import { getSettings } from './pcloud.js';
 
 let toastTimer = null;
 
@@ -83,31 +82,23 @@ export function showDetail(place) {
   openSheet('detail-sheet');
 }
 
-export function showSettings(settings, onSave, onConnect, onDisconnect, onRefresh) {
+export function showSettings(settings, handlers) {
+  const { localCount, onSave, onRefresh, onExport, onClearLocal } = handlers;
   const form = document.getElementById('settings-form');
   if (!form) return;
 
   form.csvDirectUrl.value = settings.csvDirectUrl;
-  form.folderId.value = settings.folderId;
   form.csvFilename.value = settings.csvFilename;
   form.mapyApiKey.value = settings.mapyApiKey;
-  form.clientId.value = settings.clientId;
 
-  const statusEl = document.getElementById('pcloud-status');
-  if (statusEl) {
-    statusEl.textContent = settings.accessToken ? 'Připojeno' : 'Nepřipojeno';
-    statusEl.classList.toggle('connected', Boolean(settings.accessToken));
+  const infoEl = document.getElementById('local-places-info');
+  if (infoEl) {
+    if (localCount > 0) {
+      infoEl.textContent = `${localCount} lokální místa čekají na export do pCloud.`;
+    } else {
+      infoEl.textContent = 'Nová místa se ukládají lokálně. Exportujte CSV a nahrajte do pCloud ručně.';
+    }
   }
-
-  document.getElementById('btn-connect-pcloud')?.addEventListener('click', () => {
-    onConnect(form.clientId.value.trim());
-  }, { once: true });
-
-  document.getElementById('btn-disconnect-pcloud')?.addEventListener('click', () => {
-    onDisconnect();
-    const refreshed = { ...getSettings(), ...getSettingsFromForm(form), accessToken: '' };
-    showSettings(refreshed, onSave, onConnect, onDisconnect, onRefresh);
-  }, { once: true });
 
   form.onsubmit = (e) => {
     e.preventDefault();
@@ -115,6 +106,14 @@ export function showSettings(settings, onSave, onConnect, onDisconnect, onRefres
     closeAllSheets();
     showToast('Nastavení uloženo');
   };
+
+  document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+    onExport();
+  }, { once: true });
+
+  document.getElementById('btn-clear-local')?.addEventListener('click', () => {
+    onClearLocal();
+  }, { once: true });
 
   document.getElementById('btn-refresh-csv')?.addEventListener('click', () => {
     onRefresh();
@@ -126,10 +125,8 @@ export function showSettings(settings, onSave, onConnect, onDisconnect, onRefres
 function getSettingsFromForm(form) {
   return {
     csvDirectUrl: form.csvDirectUrl.value.trim(),
-    folderId: form.folderId.value.trim(),
-    csvFilename: form.csvFilename.value.trim(),
+    csvFilename: form.csvFilename.value.trim() || CONFIG.defaultCsvFilename,
     mapyApiKey: form.mapyApiKey.value.trim(),
-    clientId: form.clientId.value.trim(),
   };
 }
 
@@ -201,9 +198,9 @@ export function showAddForm(statuses, onSave) {
     };
 
     try {
-      await onSave(place);
+      onSave(place);
       closeAllSheets();
-      showToast('Místo uloženo');
+      showToast('Místo uloženo lokálně');
     } catch (err) {
       showToast(err.message, true);
     }

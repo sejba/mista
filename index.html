@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Mapa zajímavých míst z pCloud CSV">
+  <meta name="description" content="Mapa zajímavých míst z pCloud CSV s lokálním přidáváním">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mista">
@@ -126,30 +126,20 @@
     <h2 class="sheet-title">Nastavení</h2>
     <form id="settings-form" class="sheet-form">
       <label>
-        CSV Direct Link URL
+        CSV Direct Link URL (pCloud)
         <input type="url" name="csvDirectUrl" placeholder="https://...">
       </label>
       <label>
-        pCloud Client ID
-        <input type="text" name="clientId" placeholder="OAuth Client ID">
-      </label>
-      <div class="pcloud-row">
-        <span id="pcloud-status" class="pcloud-status">Nepřipojeno</span>
-        <button type="button" id="btn-connect-pcloud" class="btn-small">Připojit pCloud</button>
-        <button type="button" id="btn-disconnect-pcloud" class="btn-small btn-muted">Odpojit</button>
-      </div>
-      <label>
-        Folder ID (pCloud)
-        <input type="text" name="folderId" placeholder="ID složky s CSV">
-      </label>
-      <label>
-        Název CSV souboru
+        Název CSV souboru (export)
         <input type="text" name="csvFilename" placeholder="mista.csv">
       </label>
       <label>
         Mapy.cz API key (volitelné)
         <input type="text" name="mapyApiKey" placeholder="API klíč">
       </label>
+      <p id="local-places-info" class="settings-hint"></p>
+      <button type="button" id="btn-export-csv" class="btn-primary">Exportovat CSV</button>
+      <button type="button" id="btn-clear-local" class="btn-secondary">Vymazat lokální místa</button>
       <button type="button" id="btn-refresh-csv" class="btn-secondary">Načíst CSV znovu</button>
       <button type="submit" class="btn-primary">Uložit nastavení</button>
       <button type="button" data-close-sheet class="btn-secondary">Zavřít</button>

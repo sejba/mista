@@ -1,25 +1,26 @@
 import { CONFIG } from './config.js';
 import {
   parseCsv,
-  serializeCsv,
   extractUniqueTags,
   extractUniqueStatuses,
 } from './csv.js';
 import {
   getSettings,
   saveSettings,
-  parseOAuthHash,
-  startOAuth,
-  disconnectPcloud,
   fetchCsvFromDirectLink,
-  uploadCsv,
+  migrateLegacySettings,
 } from './pcloud.js';
+import {
+  getLocalPlaces,
+  addLocalPlace,
+  clearLocalPlaces,
+  exportCsvFile,
+} from './storage.js';
 import { initMap, setPlaces, locateUser, updateTileLayer } from './map.js';
 import {
   initFilters,
   filterPlaces,
   renderFilters,
-  resetFilters,
 } from './filters.js';
 import {
   initSheetHandlers,
@@ -31,19 +32,29 @@ import {
   showLoading,
 } from './ui.js';
 
+let remotePlaces = [];
 let allPlaces = [];
+
+function rebuildAllPlaces() {
+  allPlaces = [...remotePlaces, ...getLocalPlaces()];
+}
 
 async function loadData() {
   const settings = getSettings();
   showLoading(true);
   try {
     const text = await fetchCsvFromDirectLink(settings.csvDirectUrl);
-    allPlaces = parseCsv(text);
+    remotePlaces = parseCsv(text);
+    rebuildAllPlaces();
     refreshUi();
-    showToast(`Načteno ${allPlaces.length} míst`);
+
+    const localCount = getLocalPlaces().length;
+    const remoteMsg = `Načteno ${remotePlaces.length} míst z pCloud`;
+    showToast(localCount ? `${remoteMsg} (+${localCount} lokálních)` : remoteMsg);
   } catch (err) {
     showToast(err.message, true);
-    if (allPlaces.length === 0) allPlaces = [];
+    remotePlaces = [];
+    rebuildAllPlaces();
     refreshUi();
   } finally {
     showLoading(false);
@@ -59,43 +70,62 @@ function refreshUi() {
   setPlaces(filtered, showDetail);
 }
 
-async function saveNewPlace(place) {
-  const settings = getSettings();
-  const newPlace = {
+function saveNewPlace(place) {
+  const newPlace = addLocalPlace({
     ...place,
-    id: `place-${Date.now()}`,
-  };
-  allPlaces.push(newPlace);
-
-  const csv = serializeCsv(allPlaces, CONFIG.csvColumns);
-  await uploadCsv(csv, { ...settings, accessToken: getSettings().accessToken });
+    id: `local-${Date.now()}`,
+    local: true,
+  });
+  rebuildAllPlaces();
   refreshUi();
+  return newPlace;
+}
+
+async function exportAllPlaces() {
+  if (allPlaces.length === 0) {
+    showToast('Žádná místa k exportu', true);
+    return;
+  }
+
+  const settings = getSettings();
+  try {
+    await exportCsvFile(allPlaces, settings.csvFilename);
+    showToast('CSV exportováno — nahrajte do pCloud a načtěte znovu');
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+function clearLocalAndRefresh() {
+  const count = getLocalPlaces().length;
+  if (count === 0) {
+    showToast('Žádná lokální místa k vymazání');
+    return;
+  }
+  clearLocalPlaces();
+  rebuildAllPlaces();
+  refreshUi();
+  showToast(`Vymazáno ${count} lokálních míst`);
 }
 
 function openSettings() {
   const settings = getSettings();
-  showSettings(
-    settings,
-    (updated) => {
+  showSettings(settings, {
+    localCount: getLocalPlaces().length,
+    onSave: (updated) => {
       const merged = { ...settings, ...updated };
       saveSettings(merged);
       updateTileLayer(merged.mapyApiKey);
       loadData();
     },
-    (clientId) => {
-      saveSettings({ ...settings, clientId });
-      startOAuth(clientId);
-    },
-    () => {
-      disconnectPcloud();
-      showToast('pCloud odpojeno');
-    },
-    () => loadData()
-  );
+    onRefresh: () => loadData(),
+    onExport: () => exportAllPlaces(),
+    onClearLocal: () => clearLocalAndRefresh(),
+  });
 }
 
 function bootstrap() {
-  parseOAuthHash();
+  migrateLegacySettings();
 
   const settings = getSettings();
   initMap('map', settings.mapyApiKey);
@@ -113,6 +143,8 @@ function bootstrap() {
   if (settings.csvDirectUrl) {
     loadData();
   } else {
+    rebuildAllPlaces();
+    refreshUi();
     showToast('Nastavte CSV Direct Link v nastavení');
     setTimeout(openSettings, 500);
   }
